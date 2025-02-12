@@ -7,3 +7,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 - Initial release
+
+
+## [0.0.3] - 2024-02-12
+
+### Fixed
+- Removed duplicate tooltips for class usage.
+- Improved unused class highlighting to correctly apply darker color.
