@@ -1,0 +1,51 @@
+{
+  "name": "unused-css-vue",
+  "displayName": "Unused CSS Vue",
+  "description": "Unused CSS Vue is a Visual Studio Code extension that enhances your Vue single-file components (.vue files) by visually differentiating CSS class declarations. The extension automatically scans the <style> sections in your Vue files and decorates the CSS class selectors—changing their text color to a darker shade—to help you easily spot and review them.\n\nKey Features:\n\n- Automatic Detection: Monitors your workspace for changes in .vue files and identifies CSS class declarations within <style> blocks.\n- Visual Enhancement: Applies a darker color to the CSS class declarations for improved readability.\n- Dynamic Updates: Continuously updates decorations as you edit Vue components.\n- Seamless Integration: Integrates effortlessly into your VS Code environment to improve CSS debugging and styling workflow.\n\nWith Vue CSS Colorizer, managing and maintaining your component styles becomes more intuitive and visually guided.",
+  "version": "0.0.1",
+  "publisher": "23390682-6baa-680a-90d5-f18944de6793",
+  "author": {
+    "name": "Krzysztof Zander",
+    "email": "krzysztof.zander@retencja.pl"
+  },
+  "engines": {
+    "vscode": "^1.97.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:vue"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "unused-css-vue.helloWorld",
+        "title": "Hello World"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.97.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.22.0",
+    "@typescript-eslint/parser": "^8.22.0",
+    "eslint": "^9.19.0",
+    "typescript": "^5.7.3",
+    "ts-loader": "^9.5.2",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
