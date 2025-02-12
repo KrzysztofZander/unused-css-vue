@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 
 let activeEditor: vscode.TextEditor | undefined;
 let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
+// Przechowujemy aktualnie utworzone dekoracje, aby przy każdej aktualizacji je usunąć.
+let currentDecorationTypes: vscode.TextEditorDecorationType[] = [];
 
 export function activate(context: vscode.ExtensionContext) {
     activeEditor = vscode.window.activeTextEditor;
@@ -24,6 +26,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }, null, context.subscriptions);
 
+    // Listen for document saves.
+    vscode.workspace.onDidSaveTextDocument(document => {
+        if (activeEditor && document === activeEditor.document) {
+            triggerUpdateDecorations();
+        }
+    }, null, context.subscriptions);
+
     function triggerUpdateDecorations() {
         if (timeout) {
             clearTimeout(timeout);
@@ -42,6 +51,10 @@ export function activate(context: vscode.ExtensionContext) {
         if (!doc.fileName.endsWith('.vue')) {
             return;
         }
+
+        // Dispose previous decoration types.
+        currentDecorationTypes.forEach(decorationType => decorationType.dispose());
+        currentDecorationTypes = [];
 
         // =======================================================
         // Step 1. Extract used classes and count their occurrences.
@@ -113,6 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
         // =======================================================
         // Step 2. Extract declared CSS classes from <style> blocks.
         // Also, capture the declared color (if any) and the range for decoration.
+        // Ensure each class is added only once so the tooltip is shown only once.
         // =======================================================
         interface DeclaredInfo { range: vscode.Range, color: string | null }
         const declaredClasses = new Map<string, DeclaredInfo>();
@@ -145,7 +159,10 @@ export function activate(context: vscode.ExtensionContext) {
                 const startPos = doc.positionAt(startOffset);
                 const endPos = doc.positionAt(endOffset);
                 const range = new vscode.Range(startPos, endPos);
-                declaredClasses.set(className, { range, color: declaredColor });
+                // Dodaj klasę tylko, jeśli jeszcze jej nie mamy – aby tooltip pojawił się tylko raz.
+                if (!declaredClasses.has(className)) {
+                    declaredClasses.set(className, { range, color: declaredColor });
+                }
             }
         }
 
@@ -160,7 +177,6 @@ export function activate(context: vscode.ExtensionContext) {
         const unusedDecorationsByColor = new Map<string, vscode.DecorationOptions[]>();
 
         declaredClasses.forEach((info, declared) => {
-            // Skip if the class is in the ignored set.
             if (ignoredClasses.has(declared)) {
                 return;
             }
@@ -187,9 +203,10 @@ export function activate(context: vscode.ExtensionContext) {
 
         // =======================================================
         // Step 4. Apply decorations.
-        // For used classes, we create a decoration type with no color override.
+        // For used classes, create a decoration type with no color override.
         if (usedDecorations.length > 0) {
             const usedDecorationType = vscode.window.createTextEditorDecorationType({});
+            currentDecorationTypes.push(usedDecorationType);
             activeEditor.setDecorations(usedDecorationType, usedDecorations);
         }
         // For unused classes, apply decoration types grouped by darkened color.
@@ -197,6 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
             const decorationType = vscode.window.createTextEditorDecorationType({
                 color: color
             });
+            currentDecorationTypes.push(decorationType);
             activeEditor?.setDecorations(decorationType, options);
         });
     }
