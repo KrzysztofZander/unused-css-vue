@@ -8,6 +8,10 @@
     "name": "Krzysztof Zander",
     "email": "krzysztof.zander@retencja.pl"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KrzysztofZander/unused-css-vue"
+  },
   "engines": {
     "vscode": "^1.97.0"
   },
