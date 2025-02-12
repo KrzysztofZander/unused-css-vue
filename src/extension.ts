@@ -174,10 +174,10 @@ export function activate(context: vscode.ExtensionContext) {
             const styleBlockFull = styleMatch[0];
 
             // Deklaracje klas: np. ".className { ... }"
-            const classRuleRegex = /(\.[a-zA-Z0-9_-]+)\s*\{([\s\S]*?)\}/g;
+            const classRuleRegex = /(\.[a-zA-Z0-9_-]+)[^{]*\{([\s\S]*?)\}/g;
             let ruleMatch: RegExpExecArray | null;
             while ((ruleMatch = classRuleRegex.exec(styleContent)) !== null) {
-                const selector = ruleMatch[1]; // np. ".custom-stepper-container"
+                const selector = ruleMatch[1]; // np. ".some-unused-class"
                 const className = selector.substring(1);
                 const ruleBlock = ruleMatch[2];
                 // Szukamy właściwości "color:"
@@ -204,10 +204,10 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             // Deklaracje id: np. "#my-id { ... }"
-            const idRuleRegex = /(\#[a-zA-Z0-9_-]+)\s*\{([\s\S]*?)\}/g;
+            const idRuleRegex = /(\#[a-zA-Z0-9_-]+)[^{]*\{([\s\S]*?)\}/g;
             let idRuleMatch: RegExpExecArray | null;
             while ((idRuleMatch = idRuleRegex.exec(styleContent)) !== null) {
-                const selector = idRuleMatch[1]; // np. "#my-id"
+                const selector = idRuleMatch[1]; // np. "#some-unused-class"
                 const idName = selector.substring(1);
                 const ruleBlock = idRuleMatch[2];
                 // Szukamy właściwości "color:"
