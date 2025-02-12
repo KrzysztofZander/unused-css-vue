@@ -11,7 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
         triggerUpdateDecorations();
     }
 
-    // Listen for changes to the active editor.
+    // Nasłuch zmian aktywnego edytora.
     vscode.window.onDidChangeActiveTextEditor(editor => {
         activeEditor = editor;
         if (editor) {
@@ -19,14 +19,14 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }, null, context.subscriptions);
 
-    // Listen for document changes.
+    // Nasłuch zmian dokumentu.
     vscode.workspace.onDidChangeTextDocument(event => {
         if (activeEditor && event.document === activeEditor.document) {
             triggerUpdateDecorations();
         }
     }, null, context.subscriptions);
 
-    // Listen for document saves.
+    // Nasłuch zapisu dokumentu.
     vscode.workspace.onDidSaveTextDocument(document => {
         if (activeEditor && document === activeEditor.document) {
             triggerUpdateDecorations();
@@ -47,38 +47,46 @@ export function activate(context: vscode.ExtensionContext) {
         const doc = activeEditor.document;
         const text = doc.getText();
 
-        // Process only .vue files.
+        // Przetwarzamy tylko pliki .vue.
         if (!doc.fileName.endsWith('.vue')) {
             return;
         }
 
-        // Dispose previous decoration types.
+        // Usuń poprzednie dekoracje.
         currentDecorationTypes.forEach(decorationType => decorationType.dispose());
         currentDecorationTypes = [];
 
         // =======================================================
-        // Step 1. Extract used classes and count their occurrences.
+        // Krok 1. Wyodrębnienie użytych klas i id wraz z liczbą wystąpień.
         // =======================================================
         const usedCounts = new Map<string, number>();
+        const usedIdCounts = new Map<string, number>();
 
         function addUsed(cls: string) {
             const key = cls.trim();
             if (!key) return;
             usedCounts.set(key, (usedCounts.get(key) || 0) + 1);
         }
+        function addUsedId(id: string) {
+            const key = id.trim();
+            if (!key) return;
+            usedIdCounts.set(key, (usedIdCounts.get(key) || 0) + 1);
+        }
 
-        // Extract from all <template> blocks.
+        // Wyodrębnij zawartość wszystkich bloków <template>.
         const templateMatches = text.match(/<template[^>]*>([\s\S]*?)<\/template>/g);
         let templateContent = "";
         if (templateMatches) {
             for (const tmpl of templateMatches) {
-                // Remove the outer <template> tags.
+                // Usuń otaczające tagi <template>.
                 const inner = tmpl.replace(/<\/?template[^>]*>/g, "");
                 templateContent += inner + "\n";
             }
         }
 
-        // Static classes: class="..."
+        // -- Użycia klas --
+
+        // Statyczne klasy: class="..."
         const staticMatches = templateContent.matchAll(/class\s*=\s*["']([^"']+)["']/g);
         for (const match of staticMatches) {
             const classes = match[1].split(/\s+/);
@@ -87,7 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
 
-        // Dynamic object bindings: :class="{ 'some-class': true, ... }"
+        // Dynamiczne wiązania obiektowe: :class="{ 'some-class': true, ... }"
         const dynamicObjMatches = templateContent.matchAll(/(?:\:class|v-bind:class)\s*=\s*["']\{([^}]+)\}["']/g);
         for (const match of dynamicObjMatches) {
             const binding = match[1];
@@ -100,7 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
 
-        // Dynamic array bindings: :class="['class1', 'class2']"
+        // Dynamiczne wiązania tablicowe: :class="['class1', 'class2']"
         const dynamicArrMatches = templateContent.matchAll(/(?:\:class|v-bind:class)\s*=\s*["']\[(.*?)\]["']/g);
         for (const match of dynamicArrMatches) {
             const binding = match[1];
@@ -113,43 +121,73 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
 
-        // Also extract from <script> (e.g. this.classList.add('some-class'))
+        // Z <script> – np. this.classList.add('some-class')
         const scriptMatch = text.match(/<script[^>]*>([\s\S]*?)<\/script>/);
         if (scriptMatch) {
             const scriptContent = scriptMatch[1];
-            const scriptMatches = scriptContent.matchAll(/classList\.add\(["']([a-zA-Z0-9_-]+)["']\)/g);
-            for (const match of scriptMatches) {
+            const scriptClassMatches = scriptContent.matchAll(/classList\.add\(["']([a-zA-Z0-9_-]+)["']\)/g);
+            for (const match of scriptClassMatches) {
                 addUsed(match[1]);
+            }
+            // Użycia id z <script> – np. document.getElementById('some-id')
+            const scriptIdMatches = scriptContent.matchAll(/getElementById\(["']([a-zA-Z0-9_-]+)["']\)/g);
+            for (const match of scriptIdMatches) {
+                addUsedId(match[1]);
+            }
+        }
+
+        // -- Użycia id --
+
+        // Statyczne id: id="..."
+        const idStaticMatches = templateContent.matchAll(/id\s*=\s*["']([^"']+)["']/g);
+        for (const match of idStaticMatches) {
+            const idVal = match[1].trim();
+            if (idVal) {
+                addUsedId(idVal);
+            }
+        }
+        // Dynamiczne wiązania id: :id="..."
+        const idDynamicMatches = templateContent.matchAll(/(?:\:id|v-bind:id)\s*=\s*["']([^"']+)["']/g);
+        for (const match of idDynamicMatches) {
+            let idVal = match[1].trim();
+            if ((idVal.startsWith("'") && idVal.endsWith("'")) || (idVal.startsWith('"') && idVal.endsWith('"'))) {
+                idVal = idVal.substring(1, idVal.length - 1).trim();
+            }
+            if (idVal) {
+                addUsedId(idVal);
             }
         }
 
         // =======================================================
-        // Step 2. Extract declared CSS classes from <style> blocks.
-        // Also, capture the declared color (if any) and the range for decoration.
-        // Ensure each class is added only once so the tooltip is shown only once.
+        // Krok 2. Wyodrębnienie deklarowanych klas i id z bloków <style>.
+        // Łapiemy również zadeklarowany kolor (jeśli występuje) oraz zakres (range) do dekoracji.
+        // Każdy selektor dodajemy tylko raz – aby tooltip pojawił się tylko raz.
         // =======================================================
         interface DeclaredInfo { range: vscode.Range, color: string | null }
         const declaredClasses = new Map<string, DeclaredInfo>();
+        const declaredIds = new Map<string, DeclaredInfo>();
+
         const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/g;
         let styleMatch: RegExpExecArray | null;
         while ((styleMatch = styleRegex.exec(text)) !== null) {
             const styleContent = styleMatch[1];
-            // Match rules like ".className { ... }"
-            const ruleRegex = /(\.[a-zA-Z0-9_-]+)\s*\{([\s\S]*?)\}/g;
+            const styleBlockFull = styleMatch[0];
+
+            // Deklaracje klas: np. ".className { ... }"
+            const classRuleRegex = /(\.[a-zA-Z0-9_-]+)\s*\{([\s\S]*?)\}/g;
             let ruleMatch: RegExpExecArray | null;
-            while ((ruleMatch = ruleRegex.exec(styleContent)) !== null) {
-                const selector = ruleMatch[1]; // e.g. ".custom-stepper-container"
+            while ((ruleMatch = classRuleRegex.exec(styleContent)) !== null) {
+                const selector = ruleMatch[1]; // np. ".custom-stepper-container"
                 const className = selector.substring(1);
                 const ruleBlock = ruleMatch[2];
-                // Look for a "color:" property inside the rule.
+                // Szukamy właściwości "color:"
                 let declaredColor: string | null = null;
                 const colorRegex = /color\s*:\s*([^;]+);/i;
                 const colorMatch = ruleBlock.match(colorRegex);
                 if (colorMatch) {
                     declaredColor = colorMatch[1].trim();
                 }
-                // Calculate the range of the selector in the document.
-                const styleBlockFull = styleMatch[0]; // full <style>...</style> block
+                // Obliczamy zakres selektora w dokumencie.
                 const selectorIndexInStyle = styleBlockFull.indexOf(selector);
                 if (selectorIndexInStyle === -1) {
                     continue;
@@ -159,18 +197,48 @@ export function activate(context: vscode.ExtensionContext) {
                 const startPos = doc.positionAt(startOffset);
                 const endPos = doc.positionAt(endOffset);
                 const range = new vscode.Range(startPos, endPos);
-                // Dodaj klasę tylko, jeśli jeszcze jej nie mamy – aby tooltip pojawił się tylko raz.
+                // Dodajemy klasę tylko raz.
                 if (!declaredClasses.has(className)) {
                     declaredClasses.set(className, { range, color: declaredColor });
+                }
+            }
+
+            // Deklaracje id: np. "#my-id { ... }"
+            const idRuleRegex = /(\#[a-zA-Z0-9_-]+)\s*\{([\s\S]*?)\}/g;
+            let idRuleMatch: RegExpExecArray | null;
+            while ((idRuleMatch = idRuleRegex.exec(styleContent)) !== null) {
+                const selector = idRuleMatch[1]; // np. "#my-id"
+                const idName = selector.substring(1);
+                const ruleBlock = idRuleMatch[2];
+                // Szukamy właściwości "color:"
+                let declaredColor: string | null = null;
+                const colorRegex = /color\s*:\s*([^;]+);/i;
+                const colorMatch = ruleBlock.match(colorRegex);
+                if (colorMatch) {
+                    declaredColor = colorMatch[1].trim();
+                }
+                // Obliczamy zakres selektora.
+                const selectorIndexInStyle = styleBlockFull.indexOf(selector);
+                if (selectorIndexInStyle === -1) {
+                    continue;
+                }
+                const startOffset = styleMatch.index + selectorIndexInStyle;
+                const endOffset = startOffset + selector.length;
+                const startPos = doc.positionAt(startOffset);
+                const endPos = doc.positionAt(endOffset);
+                const range = new vscode.Range(startPos, endPos);
+                // Dodajemy id tylko raz.
+                if (!declaredIds.has(idName)) {
+                    declaredIds.set(idName, { range, color: declaredColor });
                 }
             }
         }
 
         // =======================================================
-        // Step 3. Create decoration options for all declared classes.
-        // For each declared class, determine its usage count.
-        // If unused, set a decoration color to the darkened version of its declared color (or default).
-        // If used, do not change its color (i.e. leave decoration style empty) but still show tooltip.
+        // Krok 3. Przygotowanie opcji dekoracji dla deklarowanych selektorów.
+        // Dla każdej klasy i id określamy liczbę użyć.
+        // Jeśli selektor nie jest używany – ustawiamy dekorację z przyciemnionym kolorem (lub domyślnym).
+        // Jeśli jest używany – dekoracja bez nadpisania koloru (ale z tooltipem).
         // =======================================================
         const ignoredClasses = new Set(["router-link-active", "router-link-exact-active"]);
         const usedDecorations: vscode.DecorationOptions[] = [];
@@ -188,42 +256,69 @@ export function activate(context: vscode.ExtensionContext) {
             };
 
             if (usageCount === 0) {
-                // For unused classes, darken the declared color (if available) or use default.
+                // Dla nieużywanych klas – przyciemniamy zadeklarowany kolor (lub używamy domyślnego).
                 const darkColor = info.color ? darkenColor(info.color, 0.2) : "#555555";
                 if (!unusedDecorationsByColor.has(darkColor)) {
                     unusedDecorationsByColor.set(darkColor, []);
                 }
                 unusedDecorationsByColor.get(darkColor)!.push(decorationOption);
             } else {
-                // For used classes, we do not alter the color (apply an empty style),
-                // but still show the tooltip.
                 usedDecorations.push(decorationOption);
             }
         });
 
+        const usedIdDecorations: vscode.DecorationOptions[] = [];
+        const unusedIdDecorationsByColor = new Map<string, vscode.DecorationOptions[]>();
+
+        declaredIds.forEach((info, declared) => {
+            const usageCount = usedIdCounts.get(declared) || 0;
+            const hoverMsg = `CSS id declaration: #${declared} (used ${usageCount} time${usageCount === 1 ? '' : 's'})`;
+            const decorationOption: vscode.DecorationOptions = {
+                range: info.range,
+                hoverMessage: hoverMsg
+            };
+
+            if (usageCount === 0) {
+                const darkColor = info.color ? darkenColor(info.color, 0.2) : "#555555";
+                if (!unusedIdDecorationsByColor.has(darkColor)) {
+                    unusedIdDecorationsByColor.set(darkColor, []);
+                }
+                unusedIdDecorationsByColor.get(darkColor)!.push(decorationOption);
+            } else {
+                usedIdDecorations.push(decorationOption);
+            }
+        });
+
         // =======================================================
-        // Step 4. Apply decorations.
-        // For used classes, create a decoration type with no color override.
+        // Krok 4. Zastosowanie dekoracji.
+        // Dekoracje dla używanych selektorów (klas i id) – bez modyfikacji koloru.
         if (usedDecorations.length > 0) {
             const usedDecorationType = vscode.window.createTextEditorDecorationType({});
             currentDecorationTypes.push(usedDecorationType);
             activeEditor.setDecorations(usedDecorationType, usedDecorations);
         }
-        // For unused classes, apply decoration types grouped by darkened color.
         unusedDecorationsByColor.forEach((options, color) => {
-            const decorationType = vscode.window.createTextEditorDecorationType({
-                color: color
-            });
+            const decorationType = vscode.window.createTextEditorDecorationType({ color });
+            currentDecorationTypes.push(decorationType);
+            activeEditor?.setDecorations(decorationType, options);
+        });
+
+        if (usedIdDecorations.length > 0) {
+            const usedIdDecorationType = vscode.window.createTextEditorDecorationType({});
+            currentDecorationTypes.push(usedIdDecorationType);
+            activeEditor.setDecorations(usedIdDecorationType, usedIdDecorations);
+        }
+        unusedIdDecorationsByColor.forEach((options, color) => {
+            const decorationType = vscode.window.createTextEditorDecorationType({ color });
             currentDecorationTypes.push(decorationType);
             activeEditor?.setDecorations(decorationType, options);
         });
     }
 
-    // Helper function: darken a hex color by a given factor (default: 20%)
+    // Helper: przyciemnia kolor hex o podany współczynnik (domyślnie 20%)
     function darkenColor(color: string, factor: number = 0.2): string {
-        // Supports only hex colors in the format "#rrggbb"
+        // Obsługuje tylko kolory hex w formacie "#rrggbb"
         if (!color.startsWith("#")) {
-            // Fallback if not hex.
             return "#555555";
         }
         let hex = color.slice(1);
