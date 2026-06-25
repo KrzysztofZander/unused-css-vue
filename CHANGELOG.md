@@ -1,3 +1,15 @@
+## [Unreleased]
+
+### Added
+- Configurable unused selector decoration color via `unusedCssVue.unusedSelectorColor`.
+- Regression tests for common Vue class binding patterns, escaped CSS selectors, and script string usage.
+
+### Fixed
+- Improved CSS class usage detection for common Vue bindings such as unquoted object keys, array bindings, and ternary expressions.
+- Improved detection of class and ID selectors referenced from `<script>` string values.
+- Improved matching for escaped CSS selectors such as `.sm\:mt-4`, `.w-\[10px\]`, and `.hover\:bg-blue-500`.
+- Unused selectors now use a consistent configured decoration color instead of inheriting from their CSS `color` declaration.
+
 ## [0.1.0] - 2025-02-12
 
 ### Added

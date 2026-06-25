@@ -1,74 +1,74 @@
 # Unused CSS Vue
 
-**Unused CSS Vue** is a Visual Studio Code extension that enhances your Vue single-file components by visually indicating the usage of CSS classes declared in the `<style>` sections. The extension scans your Vue files to determine how many times each CSS class is used (both in static and dynamic bindings) and then decorates the CSS class selectors accordingly:
+**Unused CSS Vue** is a Visual Studio Code extension that highlights unused CSS class and ID selectors inside Vue single-file components.
 
-- **Unused classes** are displayed in a darkened version of their declared color (or a default dark gray if no color is specified).
-- **Used classes** are decorated with a tooltip showing the number of times they are used, without altering their original color.
-
-This makes it easier to identify and manage unused CSS rules and maintain a cleaner codebase.
-
----
+The extension scans `.vue` files, compares selectors declared in `<style>` blocks with usage found in `<template>` and `<script>`, and decorates the declared selectors with usage tooltips.
 
 ## Features
 
-- **Automatic Analysis:**  
-  Scans the entire `.vue` file—including `<template>`, `<script>`, and `<style>` sections—to determine which CSS classes are used and how often.
+- Detects unused CSS class selectors, for example `.card`.
+- Detects unused CSS ID selectors, for example `#hero`.
+- Counts usages from static template attributes such as `class="card active"` and `id="hero"`.
+- Supports common Vue bindings such as `:class="{ active: isActive }"`, `:class="['card', isActive ? 'active' : 'inactive']"`, `:id="'hero'"`, and `v-bind:*` variants.
+- Detects selectors referenced in script strings, including class arrays and DOM selector strings such as `document.querySelector('.card #hero')`.
+- Supports escaped CSS selector names such as `.sm\:mt-4`, `.w-\[10px\]`, and `.hover\:bg-blue-500:hover`.
+- Updates decorations as you edit the active Vue file.
 
-- **Dynamic Decorations:**  
-  Unused classes are visually marked by darkening their text color based on their declared color in the `<style>` block (or using a default dark color). Used classes remain unchanged but show a tooltip with the usage count.
+## Decorations
 
-- **Live Updates:**  
-  The extension updates decorations in real-time as you edit your Vue components.
+- Unused class and ID declarations are shown with the configured unused selector color.
+- Used declarations keep their normal editor styling.
+- Hovering a declaration shows how many times that selector was detected.
 
-- **Support for Dynamic Bindings:**  
-  Handles both static class attributes (e.g., `class="my-class"`) and dynamic class bindings (e.g., `:class="{ 'my-class': condition }"` or `:class="['my-class', dynamicClass]"`).
+## Configuration
 
----
+The unused selector color can be changed in VS Code settings:
 
-## Installation
+```json
+"unusedCssVue.unusedSelectorColor": "#888888"
+```
 
-### From the VS Code Marketplace
+The value accepts any CSS color supported by VS Code decorations, for example:
 
-1. Open Visual Studio Code.
-2. Go to the Extensions view by clicking on the Extensions icon in the Activity Bar or pressing `Ctrl+Shift+X`.
-3. Search for **Unused CSS Vue**.
-4. Click **Install**.
+```json
+"unusedCssVue.unusedSelectorColor": "#d97706"
+```
 
-### From a VSIX Package
+or:
 
-1. Download the `.vsix` file (e.g., `unused-css-vue-0.0.1.vsix`).
-2. In VS Code, open the command palette (`Ctrl+Shift+P`) and run the command:
-3. Select the downloaded file to install the extension.
-
----
+```json
+"unusedCssVue.unusedSelectorColor": "rgba(255, 0, 0, 0.75)"
+```
 
 ## Usage
 
-1. **Open a Vue File:**  
-When you open a `.vue` file, the extension will automatically scan its contents.
-
-2. **View Decorations:**  
-- **Unused CSS classes** in the `<style>` block will appear in a darkened color.
-- **Used CSS classes** remain with their original color.
-- Hover over any CSS class declaration to see a tooltip that shows the number of times that class is used in the file.
-
-3. **Dynamic Updates:**  
-As you modify your Vue file (for example, adding or removing class bindings), the decorations and tooltips will update automatically.
-
----
+1. Open a `.vue` file.
+2. Check class and ID declarations inside the `<style>` block.
+3. Hover over a decorated selector to see the usage count.
+4. Change `unusedCssVue.unusedSelectorColor` if you want unused selectors to use a different color.
 
 ## Development
 
-### Prerequisites
+Install dependencies:
 
-- [Node.js](https://nodejs.org/) (which includes npm)
-- [Visual Studio Code](https://code.visualstudio.com/)
-- [Yeoman](https://yeoman.io/) and [generator-code](https://github.com/microsoft/vscode-generator-code) (for extension scaffolding)
-
-### Building the Extension
-
-1. Clone or download the extension source code.
-2. Open the project folder in VS Code.
-3. Install dependencies:
 ```bash
 npm install
+```
+
+Build the extension:
+
+```bash
+npm run compile
+```
+
+Run linting:
+
+```bash
+npm run lint
+```
+
+Run tests:
+
+```bash
+npm test
+```
