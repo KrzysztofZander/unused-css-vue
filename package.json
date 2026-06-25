@@ -37,6 +37,7 @@
     "watch": "webpack --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
     "lint": "eslint src",
+    "pretest": "npm run compile && tsc -p . --outDir out",
     "test": "vscode-test"
   },
   "devDependencies": {
