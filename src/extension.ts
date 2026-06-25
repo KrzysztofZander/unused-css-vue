@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
-import { analyzeVueSfc, darkenColor, type DeclaredSelectorInfo } from './analyzer';
+import { analyzeVueSfc, type DeclaredSelectorInfo } from './analyzer';
 
 let activeEditor: vscode.TextEditor | undefined;
 let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
 let currentDecorationTypes: vscode.TextEditorDecorationType[] = [];
+const defaultUnusedSelectorColor = '#888888';
 
 export function activate(context: vscode.ExtensionContext) {
     activeEditor = vscode.window.activeTextEditor;
@@ -30,6 +31,12 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }, null, context.subscriptions);
 
+    vscode.workspace.onDidChangeConfiguration(event => {
+        if (event.affectsConfiguration('unusedCssVue.unusedSelectorColor')) {
+            triggerUpdateDecorations();
+        }
+    }, null, context.subscriptions);
+
     function triggerUpdateDecorations() {
         if (timeout) {
             clearTimeout(timeout);
@@ -51,6 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
         currentDecorationTypes = [];
 
         const analysis = analyzeVueSfc(doc.getText());
+        const unusedSelectorColor = getUnusedSelectorColor();
         const ignoredClasses = new Set(['router-link-active', 'router-link-exact-active']);
         const usedDecorations: vscode.DecorationOptions[] = [];
         const unusedDecorationsByColor = new Map<string, vscode.DecorationOptions[]>();
@@ -68,11 +76,10 @@ export function activate(context: vscode.ExtensionContext) {
             );
 
             if (usageCount === 0) {
-                const darkColor = info.color ? darkenColor(info.color, 0.2) : '#555555';
-                if (!unusedDecorationsByColor.has(darkColor)) {
-                    unusedDecorationsByColor.set(darkColor, []);
+                if (!unusedDecorationsByColor.has(unusedSelectorColor)) {
+                    unusedDecorationsByColor.set(unusedSelectorColor, []);
                 }
-                unusedDecorationsByColor.get(darkColor)!.push(decorationOption);
+                unusedDecorationsByColor.get(unusedSelectorColor)!.push(decorationOption);
             } else {
                 usedDecorations.push(decorationOption);
             }
@@ -90,11 +97,10 @@ export function activate(context: vscode.ExtensionContext) {
             );
 
             if (usageCount === 0) {
-                const darkColor = info.color ? darkenColor(info.color, 0.2) : '#555555';
-                if (!unusedIdDecorationsByColor.has(darkColor)) {
-                    unusedIdDecorationsByColor.set(darkColor, []);
+                if (!unusedIdDecorationsByColor.has(unusedSelectorColor)) {
+                    unusedIdDecorationsByColor.set(unusedSelectorColor, []);
                 }
-                unusedIdDecorationsByColor.get(darkColor)!.push(decorationOption);
+                unusedIdDecorationsByColor.get(unusedSelectorColor)!.push(decorationOption);
             } else {
                 usedIdDecorations.push(decorationOption);
             }
@@ -114,6 +120,15 @@ function createDecorationOption(
         range: new vscode.Range(doc.positionAt(info.startOffset), doc.positionAt(info.endOffset)),
         hoverMessage
     };
+}
+
+function getUnusedSelectorColor(): string {
+    const configuredColor = vscode.workspace
+        .getConfiguration('unusedCssVue')
+        .get<string>('unusedSelectorColor', defaultUnusedSelectorColor)
+        .trim();
+
+    return configuredColor || defaultUnusedSelectorColor;
 }
 
 function applyDecorations(

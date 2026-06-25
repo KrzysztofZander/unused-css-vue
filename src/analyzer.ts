@@ -6,7 +6,6 @@ interface TextBlock {
 export interface DeclaredSelectorInfo {
     startOffset: number;
     endOffset: number;
-    color: string | null;
 }
 
 export interface VueUsageAnalysis {
@@ -26,7 +25,6 @@ interface ParsedSelector {
 interface StyleRule {
     selector: string;
     selectorStart: number;
-    body: string;
 }
 
 export function analyzeVueSfc(text: string): VueUsageAnalysis {
@@ -158,14 +156,12 @@ function extractDeclaredSelectors(styleBlocks: TextBlock[]) {
                 continue;
             }
 
-            const color = extractDeclaredColor(rule.body);
             for (const selector of parseCssSelectorTokens(rule.selector, block.contentStart + rule.selectorStart)) {
                 const target = selector.kind === 'class' ? declaredClasses : declaredIds;
                 if (!target.has(selector.name)) {
                     target.set(selector.name, {
                         startOffset: selector.startOffset,
-                        endOffset: selector.endOffset,
-                        color
+                        endOffset: selector.endOffset
                     });
                 }
             }
@@ -202,8 +198,7 @@ function extractStyleRules(styleContent: string): StyleRule[] {
 
         const selectorStart = findSelectorStart(styleContent, index);
         const selector = styleContent.slice(selectorStart, index);
-        const body = styleContent.slice(index + 1, closeIndex);
-        rules.push({ selector, selectorStart, body });
+        rules.push({ selector, selectorStart });
     }
 
     return rules;
@@ -443,11 +438,6 @@ function extractBlocks(text: string, tagName: string): TextBlock[] {
     return blocks;
 }
 
-function extractDeclaredColor(ruleBody: string): string | null {
-    const colorMatch = ruleBody.match(/(?:^|[;\s{])color\s*:\s*([^;{}]+)/i);
-    return colorMatch ? colorMatch[1].trim() : null;
-}
-
 function addClassTokens(value: string, addClass: (className: string) => void) {
     for (const token of splitWhitespaceTokens(value)) {
         if (!/[{}"'`=<>]/.test(token)) {
@@ -467,29 +457,4 @@ function addUsage(usageMap: Map<string, number>, value: string) {
     }
 
     usageMap.set(key, (usageMap.get(key) || 0) + 1);
-}
-
-export function darkenColor(color: string, factor: number = 0.2): string {
-    if (!color.startsWith('#')) {
-        return '#555555';
-    }
-
-    const hex = color.slice(1);
-    if (hex.length !== 6) {
-        return '#555555';
-    }
-
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-
-    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
-        return '#555555';
-    }
-
-    r = Math.floor(r * (1 - factor));
-    g = Math.floor(g * (1 - factor));
-    b = Math.floor(b * (1 - factor));
-
-    return '#' + [r, g, b].map(channel => channel.toString(16).padStart(2, '0')).join('');
 }

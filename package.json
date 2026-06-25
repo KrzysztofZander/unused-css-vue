@@ -29,7 +29,17 @@
         "command": "unused-css-vue.helloWorld",
         "title": "Hello World"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Unused CSS Vue",
+      "properties": {
+        "unusedCssVue.unusedSelectorColor": {
+          "type": "string",
+          "default": "#888888",
+          "markdownDescription": "Color used to decorate unused CSS class and ID selectors. Accepts any CSS color value, for example `#888888`, `orange`, or `rgba(255, 0, 0, 0.75)`."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
